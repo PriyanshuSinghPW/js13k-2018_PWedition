@@ -24,6 +24,20 @@
   border-radius:50% 50% 0% 0%;
 }
 
+/* Pizza topping shown above enemy */
+.enemy .topping
+{
+  position:absolute;
+  left:50%;
+  top:-18%;
+  transform:translateX(-50%);
+  font-size:18px;
+  line-height:1;
+  pointer-events:none;
+  z-index:1000;
+  animation:thing_float 2s infinite;
+}
+
 .enemy.walk.right .body
 {
   transform:rotate(5deg);

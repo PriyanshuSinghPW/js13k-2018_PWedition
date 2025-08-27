@@ -16,11 +16,13 @@
 
 .thing_21
 {
-  display:inline-block;
+  display:flex;
+  align-items:center;
+  justify-content:center;
   width:21px;
   height:21px;
-  background:#ead94c;
-  background:linear-gradient(to bottom, #ead94c 0%,#ead94c 50%,#d7c745 50%,#d7c745 100%);
+  font-size:18px; /* emoji size close to previous cube */
+  line-height:1;
   transform-origin:0px 0px;
   transform:translate(30px, 15px) rotate(45deg);
   border-radius:5px 5px;
@@ -32,10 +34,36 @@
 
 .thing_22
 {
-  background-size:100% 100%;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  width:21px;
+  height:21px;
+  font-size:18px;
+  line-height:1;
+  transform-origin:0px 0px;
+  transform:translate(30px, 15px) rotate(45deg);
+  border-radius:5px 5px;
+
+  animation-name:thing_float;
+  animation-duration:2s;
+  animation-iteration-count:infinite;
 }
 
 .thing_23
 {
-  background-size:100% 100%;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  width:21px;
+  height:21px;
+  font-size:18px;
+  line-height:1;
+  transform-origin:0px 0px;
+  transform:translate(30px, 15px) rotate(45deg);
+  border-radius:5px 5px;
+
+  animation-name:thing_float;
+  animation-duration:2s;
+  animation-iteration-count:infinite;
 }

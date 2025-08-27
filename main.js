@@ -1258,7 +1258,8 @@ function addenemy(x, y, w, h, enemyclass)
   var enemyobj=new st(enemy);
 
   // Set DOM properties
-  enemy.innerHTML="<div class=\"body\"><div class=\"eye\"><div class=\"iris\"></div></div></div><div class=\"eyelid\"></div><div class=\"leg rightleg\"></div><div class=\"leg leftleg\"></div>";
+  // Add a pizza topping element on top of the enemy for a fun visual
+  enemy.innerHTML="<div class=\"topping\">🍕</div><div class=\"body\"><div class=\"eye\"><div class=\"iris\"></div></div></div><div class=\"eyelid\"></div><div class=\"leg rightleg\"></div><div class=\"leg leftleg\"></div>";
   enemy.style.position="absolute";
   enemy.style.left=x+"px";
   enemy.style.top=y+"px";
@@ -1326,13 +1327,19 @@ function addcollectable(x, y, id)
   // Change SVG colours of keys as appropriate
   switch (id)
   {
-    case 22:
-    case 23:
-      var svg='<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><path d="M43 20c-4-5-13-4-16 2-1 2-2 6-1 8s-1 4-2 5l-6 6c-2 3 1 6 4 6l4-1c1-1 0-3 2-4 1 0 3 1 3-1l-1-3c4 0 8 1 11-1 5-3 7-11 4-15l-2-2m-11 8c0-4 4-6 7-4 2 2 1 7-2 8-3 0-5-2-5-4z" fill="#dd4e54"/></svg>';
-      if (id==22) // make green key green
-        svg=svg.replace("#dd4e54", "#49b47e");
+    case 21: // fruit collectable (random fruit/veg emoji)
+      // Choose a random fruit/vegetable emoji to display for variety
+      var fruits = ['🍎','🍊','🍇','🍓','🍍','🍉','🍒','🥝','🍐','🍋','🥭','🍑','🥭','🥥','🥑'];
+      var idx = Math.floor(Math.random() * fruits.length);
+      thing.innerHTML = fruits[idx];
+      break;
 
-      thing.innerHTML=svg;
+    case 22: // red-type collectable (use a red fruit/veg emoji)
+      thing.innerHTML = '🍅'; // tomato (red)
+      break;
+
+    case 23: // green-type collectable (use a green veg emoji)
+      thing.innerHTML = '🥦'; // broccoli (green)
       break;
 
     default:
