@@ -122,7 +122,9 @@ async function toggleFullscreen()
       }
 
       // After entering fullscreen, check whether prompt is needed
-      checkOrientation();
+  checkOrientation();
+  // Update playfield scaling immediately so camera zoom stays consistent
+  try { playfieldsize(); } catch(e) {}
     }
     catch (e) { /* ignore */ }
   }
@@ -140,6 +142,7 @@ async function toggleFullscreen()
 
     // Hide rotate prompt
     try { var rp=document.getElementById('rotatePrompt'); if (rp) rp.style.display='none'; } catch(e){}
+  try { playfieldsize(); } catch(e) {}
   }
 }
 
@@ -517,12 +520,16 @@ function redraw()
   {
     try
     {
-      window.scrollTo({left:(gs.player.x*gs.scale)-(window.innerWidth/2), top:(gs.player.y*gs.scale)-(window.innerHeight/2), behaviour:"smooth"});
+  var vw = (gs.viewportW||window.innerWidth);
+  var vh = (gs.viewportH||window.innerHeight);
+  window.scrollTo({left:(gs.player.x*gs.scale)-(vw/2), top:(gs.player.y*gs.scale)-(vh/2), behaviour:"smooth"});
     }
     catch (e)
     {
       // Fallback to 2 parameters for older browsers
-      window.scrollTo((gs.player.x*gs.scale)-(window.innerWidth/2), (gs.player.y*gs.scale)-(window.innerHeight/2));
+  var vw = (gs.viewportW||window.innerWidth);
+  var vh = (gs.viewportH||window.innerHeight);
+  window.scrollTo((gs.player.x*gs.scale)-(vw/2), (gs.player.y*gs.scale)-(vh/2));
     }
   }
 
@@ -1576,6 +1583,8 @@ function launchgame(level)
 {
   // Remove start-screen landscape enforcement so gameplay is normal
   removeStartLandscape();
+  // Ensure correct scale is applied immediately for gameplay
+  try { playfieldsize(); } catch(e) {}
   var screen=document.getElementById("ui");
   var domtext=buildalphablockstyle(12)+"<div id=\"title\" style=\"background:none;\"></div>";
 
@@ -1594,6 +1603,11 @@ function launchgame(level)
 
   // Load everything for "current" level
   loadlevel();
+
+  // Force an immediate recenter to the player so camera doesn't leave them off-screen
+  try {
+  setTimeout(function(){ try { var vw=(gs.viewportW||window.innerWidth); var vh=(gs.viewportH||window.innerHeight); var cx=(gs.player.x*gs.scale)-(vw/2); var cy=(gs.player.y*gs.scale)-(vh/2); window.scrollTo(cx, cy); } catch(e){} }, 50);
+  } catch(e) {}
 
   // Resize background to fit playfield
   var bg=document.getElementById("background");
@@ -1677,6 +1691,7 @@ function show_title()
     if (fsbtn) fsbtn.style.display='none';
   }
   catch(e) { }
+  try { playfieldsize(); } catch(e) {}
 }
 
 // Show the intro console
@@ -1693,6 +1708,7 @@ function show_screen(pixelsize)
 
   // Hide fullscreen toggle while console/menu screens are active
   try { var fsbtn=document.getElementById('fs_button'); if (fsbtn) fsbtn.style.display='none'; } catch(e) {}
+  try { playfieldsize(); } catch(e) {}
 }
 
 // Hide the intro console
@@ -1719,18 +1735,55 @@ function playfieldsize()
   var targetHeight = ((gs.tilewidth * 10) / 4) * 3;
 
   // Choose scale to fit viewport (use min of width/height so we don't letterbox)
-  gs.scale = Math.min(window.innerWidth / targetWidth, window.innerHeight / targetHeight);
+  // Account for forced landscape wrapper rotation: swap viewport dims if needed
+  var viewportW = window.innerWidth;
+  var viewportH = window.innerHeight;
+  if (document.body && document.body.classList && document.body.classList.contains('force-landscape'))
+  {
+    // When forcing landscape we rotated the wrapper, so use swapped dims
+    var tmp = viewportW; viewportW = viewportH; viewportH = tmp;
+  }
+
+  gs.scale = Math.min(viewportW / targetWidth, viewportH / targetHeight);
 
   // Apply a small multiplier so default view matches fullscreen zoom
   if (gs.scale && gs.scaleMultiplier)
     gs.scale = gs.scale * gs.scaleMultiplier;
 
-  document.getElementById("wrapper").style = "width:" + targetWidth + "px; height:" + targetHeight + "px; transform-origin:0px 0px; transform:scale(" + gs.scale + ");";
+  var wrapper = document.getElementById("wrapper");
+  if (wrapper)
+  {
+    // Set width/height but preserve other inline styles (position/translate/rotate)
+    wrapper.style.width = targetWidth + "px";
+    wrapper.style.height = targetHeight + "px";
+    wrapper.style.transformOrigin = '0px 0px';
 
-  // Move the view if required
+    // Preserve any existing non-scale transform (e.g., translate/rotate applied by applyStartLandscape)
+    var existing = wrapper.style.transform || '';
+    // Remove any previous scale() from the inline transform
+    existing = existing.replace(/scale\([^)]*\)/g, '').trim();
+    // Compose new transform with preserved parts and the new scale
+    var newTransform = existing;
+    if (newTransform.length > 0) newTransform = newTransform + ' ';
+    newTransform = newTransform + 'scale(' + gs.scale + ')';
+    wrapper.style.transform = newTransform;
+  }
+
+  // Store viewport dims for use by redraw/centering logic
+  gs.viewportW = viewportW;
+  gs.viewportH = viewportH;
+
+  // Move the view if required (only if player has been positioned)
   try
   {
-    window.scrollTo({left:(gs.player.x*gs.scale)-(window.innerWidth/2), top:(gs.player.y*gs.scale)-(window.innerHeight/2), behaviour:"smooth"});
+    if (gs.player && (typeof(gs.player.x)!="undefined") && (typeof(gs.player.y)!="undefined"))
+    {
+  // Use viewportW/viewportH for centering if force-landscape is active
+  var centerX = (gs.player.x * gs.scale) - (viewportW / 2);
+  var centerY = (gs.player.y * gs.scale) - (viewportH / 2);
+      // Use smooth scroll where available
+      try { window.scrollTo({left:centerX, top:centerY, behaviour:"smooth"}); } catch(e) { window.scrollTo(centerX, centerY); }
+    }
   }
   catch (e)
   {
@@ -1864,11 +1917,13 @@ function init()
       {
         if (btn) btn.innerText='⤡';
         checkOrientation();
+  try { playfieldsize(); } catch(e) {}
       }
       else
       {
         if (btn) btn.innerText='⤢';
         var rp=document.getElementById('rotatePrompt'); if (rp) rp.style.display='none';
+  try { playfieldsize(); } catch(e) {}
       }
     });
 
