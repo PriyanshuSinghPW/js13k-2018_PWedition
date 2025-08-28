@@ -28,7 +28,7 @@
 .enemy .topping
 {
   position:absolute;
-  left:50%;
+  left:10%;
   top:-18%;
   transform:translateX(-50%);
   font-size:18px;
