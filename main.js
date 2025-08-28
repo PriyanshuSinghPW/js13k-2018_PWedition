@@ -71,9 +71,124 @@ var gs={
   randoms:new randomizer(),
   writer:new textwriter(),
   timeline:new timelineobj(),
+  state:0, // state machine, 0=intro, 1=menu, 2=playing, 3=complete
 
-  state:0 // state machine, 0=intro, 1=menu, 2=playing, 3=complete
+  // Visual tuning
+  scaleMultiplier:1.12 // default zoom multiplier (makes camera a bit tighter on player)
 };
+
+// Helper to detect mobile devices
+function isMobileDevice()
+{
+  return /Mobi|Android|iPhone|iPad|iPod|Windows Phone|Opera Mini|IEMobile/i.test(navigator.userAgent) || (window.matchMedia && window.matchMedia('(pointer:coarse)').matches);
+}
+
+// Helper to detect portrait orientation
+function isPortrait()
+{
+  return window.innerHeight > window.innerWidth;
+}
+
+// Show/hide rotate prompt when needed
+function checkOrientation()
+{
+  try {
+    var rp = document.getElementById('rotatePrompt');
+    if (!rp) return;
+
+    if (document.fullscreenElement && isMobileDevice() && isPortrait())
+      rp.style.display='flex';
+    else
+      rp.style.display='none';
+  }
+  catch(e) { }
+}
+
+// Enhanced fullscreen toggle: request fullscreen and try to lock orientation on mobile
+async function toggleFullscreen()
+{
+  var container=document.getElementById('wrapper')||document.documentElement;
+
+  if (!document.fullscreenElement)
+  {
+    try {
+      await container.requestFullscreen();
+
+      // Try to lock orientation to landscape on supporting platforms
+      if (isMobileDevice() && screen.orientation && screen.orientation.lock)
+      {
+        try { await screen.orientation.lock('landscape'); }
+        catch (err) { /* If lock fails, we'll show a rotate prompt */ }
+      }
+
+      // After entering fullscreen, check whether prompt is needed
+      checkOrientation();
+    }
+    catch (e) { /* ignore */ }
+  }
+  else
+  {
+    try { await document.exitFullscreen(); }
+    catch (e) { /* ignore */ }
+
+    // Try to unlock orientation when leaving fullscreen
+    if (screen.orientation && screen.orientation.unlock)
+    {
+      try { screen.orientation.unlock(); }
+      catch (err) { /* ignore */ }
+    }
+
+    // Hide rotate prompt
+    try { var rp=document.getElementById('rotatePrompt'); if (rp) rp.style.display='none'; } catch(e){}
+  }
+}
+
+// Apply a CSS class to force landscape-like view on start screens for mobile
+function applyStartLandscape()
+{
+  try {
+    document.body.classList.add('force-landscape');
+
+    // Also set inline styles on #wrapper for more robust rotation on mobile
+    var wrapper=document.getElementById('wrapper');
+    if (wrapper)
+    {
+      // Swap width/height and center
+      var w = window.innerWidth;
+      var h = window.innerHeight;
+      wrapper.style.position='fixed';
+      wrapper.style.left='50%';
+      wrapper.style.top='50%';
+      wrapper.style.width = h + 'px';
+      wrapper.style.height = w + 'px';
+      wrapper.style.transformOrigin = 'center center';
+      wrapper.style.transform = 'translate(-50%,-50%) rotate(90deg)';
+      wrapper.style.zIndex = '1';
+    }
+  }
+  catch (e) { }
+}
+
+function removeStartLandscape()
+{
+  try {
+    document.body.classList.remove('force-landscape');
+    var wrapper=document.getElementById('wrapper');
+    if (wrapper)
+    {
+      // Remove inline styles we set
+      wrapper.style.position='absolute';
+      wrapper.style.left='0px';
+      wrapper.style.top='0px';
+      wrapper.style.width = '';
+      wrapper.style.height = '';
+      wrapper.style.transform = '';
+      wrapper.style.transformOrigin = '';
+      wrapper.style.zIndex = '';
+    }
+  }
+  catch (e) { }
+}
 
 // Clear both keyboard and gamepad input state
 function clearinputstate(character)
@@ -1459,6 +1574,8 @@ function showhealth()
 // Launch game
 function launchgame(level)
 {
+  // Remove start-screen landscape enforcement so gameplay is normal
+  removeStartLandscape();
   var screen=document.getElementById("ui");
   var domtext=buildalphablockstyle(12)+"<div id=\"title\" style=\"background:none;\"></div>";
 
@@ -1489,6 +1606,50 @@ function launchgame(level)
 
   // Start the game running
   window.requestAnimationFrame(rafcallback);
+  
+  // Add a small fullscreen toggle button to UI (persistent)
+  try
+  {
+    // Ensure a persistent fullscreen button on the body so it's not removed when #ui is replaced
+    var fsbtn=document.getElementById("fs_button");
+    if (fsbtn)
+    {
+      // If it was moved into the title screen, move it back to body and restore fixed positioning
+      if (fsbtn.parentNode && fsbtn.parentNode.id=='title_screen')
+      {
+        document.body.appendChild(fsbtn);
+        fsbtn.style.position='fixed';
+        fsbtn.style.right='8px';
+        fsbtn.style.top='8px';
+      }
+    }
+    else
+    {
+      fsbtn=document.createElement("button");
+      fsbtn.id="fs_button";
+      fsbtn.title="Toggle fullscreen";
+      fsbtn.innerText="⤢";
+      fsbtn.onclick=function(e){ toggleFullscreen(); };
+      document.body.appendChild(fsbtn);
+    }
+
+    // Inject a rotate prompt overlay for mobile if needed
+    var rp=document.getElementById('rotatePrompt');
+    if (!rp)
+    {
+      rp=document.createElement('div');
+      rp.id='rotatePrompt';
+      rp.style.display='none';
+      rp.innerHTML='<div class="rotate_inner">Please rotate your device to landscape</div>';
+      document.body.appendChild(rp);
+    }
+  // Run an initial check
+  checkOrientation();
+
+  // Make sure fullscreen toggle is visible for gameplay
+  try { var fsbtn2=document.getElementById('fs_button'); if (fsbtn2) { fsbtn2.style.display=''; fsbtn2.style.position='fixed'; fsbtn2.style.right='8px'; fsbtn2.style.top='8px'; } } catch(e) {}
+  }
+  catch (e) { }
 }
 
 // Display the title screen
@@ -1496,8 +1657,9 @@ function show_title()
 {
   /////////////////////////////////////////////////////
   // Main menu
+  if (gs.isMobile) applyStartLandscape();
   var screen=document.getElementById("ui");
-  var domtext=buildalphablockstyle(12)+"<div id=\"title\"></div><div id=\"backstory\"></div>";
+  var domtext=buildalphablockstyle(12)+"<div id=\"title_screen\">"+"<div id=\"title\"></div><div id=\"start_button_container\"><button id=\"start_button\">Start</button></div><div id=\"backstory\"></div>"+"</div>";
 
   screen.innerHTML=domtext;
   gs.writer.write("title", "Planet");
@@ -1506,6 +1668,15 @@ function show_title()
   gs.writer.write("title", "OFFLINE!");
 
   gs.writer.write("backstory", "Fred lives on planet Figadore in the Hercules cluster, he likes watching cat videos from planet Earth, but the network link has gone OFFLINE!  Help Fred by unlocking doors, solving puzzles and collecting all fruits to pay for the entanglement repolarisation required to get his planet back online. Keys unlock nearest lock of same colour, you need to collect all the fruits and squash all the pizza guards to progress through the levels."+String.fromCharCode(13)+" "+String.fromCharCode(13)+"WASD or cursors to move, ENTER or SPACE to jump, or browser supported gamepad. Press jump to start");
+
+  // Start button handler
+  setTimeout(function(){ var sb=document.getElementById('start_button'); if (sb) { sb.onclick=function(){ var om=document.getElementById('orientation_modal'); if (om) om.remove(); hide_screen(); gs.state=2; launchgame(0); } } }, 10);
+  // Hide fullscreen toggle on title/backstory screen
+  try {
+    var fsbtn=document.getElementById('fs_button');
+    if (fsbtn) fsbtn.style.display='none';
+  }
+  catch(e) { }
 }
 
 // Show the intro console
@@ -1519,6 +1690,9 @@ function show_screen(pixelsize)
   domtext+="<span id=\"cursor\"></span></div>";
 
   screen.innerHTML=domtext;
+
+  // Hide fullscreen toggle while console/menu screens are active
+  try { var fsbtn=document.getElementById('fs_button'); if (fsbtn) fsbtn.style.display='none'; } catch(e) {}
 }
 
 // Hide the intro console
@@ -1540,9 +1714,18 @@ function start_music()
 // Handle resize events
 function playfieldsize()
 {
-  gs.scale=(window.innerWidth/(gs.tilewidth*12));
+  // Compute target playfield size (10 tiles wide, 4:3 aspect)
+  var targetWidth = gs.tilewidth * 10;
+  var targetHeight = ((gs.tilewidth * 10) / 4) * 3;
 
-  document.getElementById("wrapper").style="width:"+(gs.tilewidth*10)+"px; height:"+(((gs.tilewidth*10)/4)*3)+"px; transform-origin:0px 0px; transform:scale("+gs.scale+");";
+  // Choose scale to fit viewport (use min of width/height so we don't letterbox)
+  gs.scale = Math.min(window.innerWidth / targetWidth, window.innerHeight / targetHeight);
+
+  // Apply a small multiplier so default view matches fullscreen zoom
+  if (gs.scale && gs.scaleMultiplier)
+    gs.scale = gs.scale * gs.scaleMultiplier;
+
+  document.getElementById("wrapper").style = "width:" + targetWidth + "px; height:" + targetHeight + "px; transform-origin:0px 0px; transform:scale(" + gs.scale + ");";
 
   // Move the view if required
   try
@@ -1584,6 +1767,68 @@ function init()
   if (!!(navigator.getGamepads))
     window.requestAnimationFrame(gamepadscan);
 
+  // Detect mobile-ish devices
+  try
+  {
+    gs.isMobile = /Mobi|Android|iPhone|iPad|iPod|Windows Phone/i.test(navigator.userAgent) || (window.matchMedia && window.matchMedia('(pointer:coarse)').matches);
+  }
+  catch (e)
+  {
+    gs.isMobile = false;
+  }
+  // Create persistent fullscreen button in UI (always available)
+  try
+  {
+    // Append fullscreen button to body so it persists even if #ui is replaced
+    var fsbtn=document.getElementById('fs_button');
+    if (!fsbtn)
+    {
+      fsbtn=document.createElement('button');
+      fsbtn.id='fs_button';
+      fsbtn.title='Toggle fullscreen';
+      fsbtn.innerText='⤢';
+      fsbtn.onclick=function(e){ toggleFullscreen(); playfieldsize(); };
+      document.body.appendChild(fsbtn);
+    }
+  // Initially hide it until gameplay starts
+  try { fsbtn.style.display='none'; } catch(e) {}
+  }
+  catch (e) { }
+
+  // Show a blocking orientation modal for mobile when in portrait (appears before gameplay)
+  if (gs.isMobile)
+  {
+  // Force start screens into landscape-like view
+  applyStartLandscape();
+    var showOrientationModal=function()
+    {
+      var ui=document.getElementById('ui');
+      if (!ui) return;
+
+      if (window.matchMedia && window.matchMedia('(orientation: portrait)').matches)
+      {
+        if (!document.getElementById('orientation_modal'))
+        {
+          var modal=document.createElement('div');
+          modal.id='orientation_modal';
+          modal.innerHTML='\n            <div class="orientation_inner">\n              <div class="orientation_text">For the best experience rotate your device to landscape.\n              </div>\n              <div class="orientation_buttons">\n                <button id="orient_full">Enter fullscreen</button>\n                <button id="orient_continue">Continue anyway</button>\n              </div>\n            </div>';
+          ui.appendChild(modal);
+
+          document.getElementById('orient_full').onclick=function(){ toggleFullscreen(); var m=document.getElementById('orientation_modal'); if (m) m.remove(); };
+          document.getElementById('orient_continue').onclick=function(){ var m=document.getElementById('orientation_modal'); if (m) m.remove(); };
+        }
+      }
+      else
+      {
+        var m=document.getElementById('orientation_modal'); if (m) m.remove();
+      }
+    };
+
+    window.addEventListener('orientationchange', showOrientationModal);
+    // show immediately at startup
+    showOrientationModal();
+  }
+
   window.addEventListener("resize", function()
   {
     playfieldsize();
@@ -1610,6 +1855,44 @@ function init()
   gs.timeline.addcallback(function(){ gs.writer.typechar(); } );
 
   gs.timeline.begin();
+
+  // Fullscreen change: update fs button icon and check orientation prompt
+  try {
+    document.addEventListener('fullscreenchange', function() {
+      var btn=document.getElementById('fs_button');
+      if (document.fullscreenElement)
+      {
+        if (btn) btn.innerText='⤡';
+        checkOrientation();
+      }
+      else
+      {
+        if (btn) btn.innerText='⤢';
+        var rp=document.getElementById('rotatePrompt'); if (rp) rp.style.display='none';
+      }
+    });
+
+    // Update rotate prompt on orientation/resize
+    window.addEventListener('orientationchange', checkOrientation);
+    window.addEventListener('resize', checkOrientation);
+
+    // Keyboard shortcuts: F11 toggle fullscreen, Ctrl+R reload
+    document.addEventListener('keydown', function(e) {
+      // If the game input handlers need key events they still run; this is additional.
+      if (e.key === 'F11')
+      {
+        e.preventDefault();
+        toggleFullscreen();
+      }
+      if ((e.key === 'r' || e.key === 'R') && e.ctrlKey)
+      {
+        e.preventDefault();
+        // Simple reload for restart behaviour
+        window.location.reload();
+      }
+    });
+  }
+  catch (e) { }
 }
 
 // Run the init() once page has loaded
