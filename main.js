@@ -1979,7 +1979,7 @@ function init()
       fsbtn=document.createElement('button');
       fsbtn.id='fs_button';
       fsbtn.title='Toggle fullscreen';
-      fsbtn.innerText='⤢';
+      fsbtn.innerHTML='<span style="display:inline-block;transform:translateY(-1px)">⤢</span>'; // Better centered
       fsbtn.onclick=function(e){ toggleFullscreen(); playfieldsize(); };
       document.body.appendChild(fsbtn);
     }
@@ -2170,13 +2170,13 @@ function init()
       var btn=document.getElementById('fs_button');
       if (document.fullscreenElement)
       {
-        if (btn) btn.innerText='⤡';
+        if (btn) btn.innerHTML='<span style="display:inline-block;transform:translateY(-1px)">⤡</span>';
         checkOrientation();
   try { playfieldsize(); } catch(e) {}
       }
       else
       {
-        if (btn) btn.innerText='⤢';
+        if (btn) btn.innerHTML='<span style="display:inline-block;transform:translateY(-1px)">⤢</span>';
         var rp=document.getElementById('rotatePrompt'); if (rp) rp.style.display='none';
   try { playfieldsize(); } catch(e) {}
       }
