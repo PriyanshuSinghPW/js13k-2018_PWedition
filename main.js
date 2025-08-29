@@ -1892,63 +1892,67 @@ function init()
   // Setup mobile touch controls: left half = move (swipe/hold left-right), right half = tap to jump
   try {
     function setupTouchControls() {
-      var ongoingTouchId = null;
-      var touchSide = null; // 'left' or 'right'
+      // Support multitouch: one dedicated movement touch (left half) and multiple jump touches (right half)
+      var movementTouchId = null;
+      var movementStartX = 0;
+      var swipeThreshold = 20; // pixels
+      var jumpTouchIds = {}; // map of active jump touch ids
 
       function clearMoveState() {
-        // clear left/right bits (1 and 4)
-        gs.player.keystate &= ~1;
-        gs.player.keystate &= ~4;
+        gs.player.keystate &= ~1; // left
+        gs.player.keystate &= ~4; // right
+      }
+
+      function updateJumpState() {
+        // If any jump touches active, set jump bit, otherwise clear
+        var any = false;
+        for (var k in jumpTouchIds) { if (jumpTouchIds.hasOwnProperty(k)) { any = true; break; } }
+        if (any) gs.player.keystate |= 16; else gs.player.keystate &= ~16;
       }
 
       window.addEventListener('touchstart', function(e) {
         if (!gs.isMobile) return;
         for (var i=0;i<e.changedTouches.length;i++) {
           var t = e.changedTouches[i];
-          // Only handle first touch for controls
-          if (ongoingTouchId!==null) continue;
-          ongoingTouchId = t.identifier;
           var x = t.clientX;
           var w = window.innerWidth;
           if (x < (w/2)) {
-            touchSide = 'left';
-            // For swipe-based controls, record start X and wait for movement
-            t._startX = x;
-            t._moved = false;
-            // store on a helper so touchmove can access
-            ongoingStartX = x;
+            // Left half: if we don't already have a movement touch, take this one
+            if (movementTouchId === null) {
+              movementTouchId = t.identifier;
+              movementStartX = x;
+              // clear movement bits until a swipe is detected
+              clearMoveState();
+            }
           } else {
-            touchSide = 'right';
-            // Right half: treat as jump (momentary)
-            gs.player.keystate |= 16; // jump bit
-            // clear jump shortly after to simulate a tap
-            (function(id){ setTimeout(function(){ if (ongoingTouchId===id) { gs.player.keystate &= ~16; } }, 150); })(ongoingTouchId);
+            // Right half: add to jump touches
+            jumpTouchIds[t.identifier] = true;
+            updateJumpState();
           }
         }
       }, {passive:true});
 
-      // Track horizontal swipe direction on left half
-      var ongoingStartX = null;
-      var swipeThreshold = 20; // pixels before we consider directional
       window.addEventListener('touchmove', function(e) {
         if (!gs.isMobile) return;
         for (var i=0;i<e.changedTouches.length;i++) {
           var t = e.changedTouches[i];
-          if (t.identifier!==ongoingTouchId) continue;
-          if (touchSide!=='left') continue; // only track moves for left side
-          var x = t.clientX;
-          var dx = x - (ongoingStartX||x);
-          if (Math.abs(dx) > swipeThreshold) {
-            if (dx > 0) {
-              // swipe right
-              gs.player.keystate |= 4; // right
-              gs.player.keystate &= ~1;
+          if (t.identifier === movementTouchId) {
+            var x = t.clientX;
+            var dx = x - movementStartX;
+            if (Math.abs(dx) > swipeThreshold) {
+              if (dx > 0) {
+                // swipe right
+                gs.player.keystate |= 4; // right
+                gs.player.keystate &= ~1;
+              } else {
+                // swipe left
+                gs.player.keystate |= 1; // left
+                gs.player.keystate &= ~4;
+              }
             } else {
-              // swipe left
-              gs.player.keystate |= 1; // left
-              gs.player.keystate &= ~4;
+              // within deadzone: clear movement
+              clearMoveState();
             }
-            t._moved = true;
           }
         }
       }, {passive:true});
@@ -1956,17 +1960,30 @@ function init()
       window.addEventListener('touchend', function(e) {
         for (var i=0;i<e.changedTouches.length;i++) {
           var t = e.changedTouches[i];
-          if (t.identifier!==ongoingTouchId) continue;
-          // Clear all control bits for this touch
-          clearMoveState();
-          gs.player.keystate &= ~16; // clear jump
-          ongoingTouchId = null;
-          touchSide = null;
+          if (t.identifier === movementTouchId) {
+            // movement touch ended
+            movementTouchId = null;
+            clearMoveState();
+          }
+          // If this was a jump touch, remove it
+          if (jumpTouchIds[t.identifier]) {
+            delete jumpTouchIds[t.identifier];
+            updateJumpState();
+          }
         }
       }, {passive:true});
 
       window.addEventListener('touchcancel', function(e) {
-        ongoingTouchId = null; touchSide = null; clearMoveState(); gs.player.keystate &= ~16;
+        for (var i=0;i<e.changedTouches.length;i++) {
+          var t = e.changedTouches[i];
+          if (t.identifier === movementTouchId) {
+            movementTouchId = null; clearMoveState();
+          }
+          if (jumpTouchIds[t.identifier]) {
+            delete jumpTouchIds[t.identifier];
+          }
+        }
+        updateJumpState();
       }, {passive:true});
     }
 
