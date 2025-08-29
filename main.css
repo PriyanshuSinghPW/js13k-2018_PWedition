@@ -108,7 +108,7 @@ body
 #fs_button
 {
   position:fixed;
-  right:8px;
+  left:60px; /* sit next to the info (i) button on the left */
   top:8px;
   z-index:2147483647; /* very high so it's always visible */
   background:rgba(0,0,0,0.6);
@@ -270,33 +270,7 @@ body
   font-size:12px;
 }
 
-/* Orientation modal (blocking) */
-#orientation_modal
-{
-  position:fixed;
-  left:0;
-  top:0;
-  right:0;
-  bottom:0;
-  background:rgba(0,0,0,0.85);
-  z-index:100000;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-}
-
-.orientation_inner
-{
-  background:rgba(0,0,0,0.9);
-  color:#fff;
-  padding:20px;
-  border-radius:8px;
-  text-align:center;
-  max-width:90%;
-}
-
-.orientation_buttons { margin-top:12px; }
-.orientation_buttons button { margin:0 6px; padding:8px 12px; }
+/* Orientation modal removed */
 
 /* Force landscape display by rotating the wrapper when device is held portrait */
 .force-landscape #wrapper

@@ -107,7 +107,11 @@ function checkOrientation()
 // Enhanced fullscreen toggle: request fullscreen and try to lock orientation on mobile
 async function toggleFullscreen()
 {
-  var container=document.getElementById('wrapper')||document.documentElement;
+  // Important: fullscreen the page, not the game wrapper.
+  // Our camera uses window.scrollTo; if we fullscreen the wrapper,
+  // the browser isolates it and page scrolling stops, breaking camera tracking.
+  // Using documentElement keeps page scrolling available in fullscreen.
+  var container=document.documentElement;
 
   if (!document.fullscreenElement)
   {
@@ -123,8 +127,10 @@ async function toggleFullscreen()
 
       // After entering fullscreen, check whether prompt is needed
   checkOrientation();
-  // Update playfield scaling immediately so camera zoom stays consistent
+  // Update playfield scaling; schedule an extra pass after the fullscreen
+  // transition so viewport dims are final before computing scale
   try { playfieldsize(); } catch(e) {}
+  setTimeout(function(){ try { playfieldsize(); } catch(e) {} }, 50);
     }
     catch (e) { /* ignore */ }
   }
@@ -143,6 +149,7 @@ async function toggleFullscreen()
     // Hide rotate prompt
     try { var rp=document.getElementById('rotatePrompt'); if (rp) rp.style.display='none'; } catch(e){}
   try { playfieldsize(); } catch(e) {}
+  setTimeout(function(){ try { playfieldsize(); } catch(e) {} }, 50);
   }
 }
 
@@ -1632,9 +1639,9 @@ function launchgame(level)
       if (fsbtn.parentNode && fsbtn.parentNode.id=='title_screen')
       {
         document.body.appendChild(fsbtn);
-        fsbtn.style.position='fixed';
-        fsbtn.style.right='8px';
-        fsbtn.style.top='8px';
+  fsbtn.style.position='fixed';
+  fsbtn.style.left='60px';
+  fsbtn.style.top='8px';
       }
     }
     else
@@ -1755,7 +1762,7 @@ function launchgame(level)
   checkOrientation();
 
   // Make sure fullscreen toggle is visible for gameplay
-  try { var fsbtn2=document.getElementById('fs_button'); if (fsbtn2) { fsbtn2.style.display=''; fsbtn2.style.position='fixed'; fsbtn2.style.right='8px'; fsbtn2.style.top='8px'; } } catch(e) {}
+  try { var fsbtn2=document.getElementById('fs_button'); if (fsbtn2) { fsbtn2.style.display=''; fsbtn2.style.position='fixed'; fsbtn2.style.left='60px'; fsbtn2.style.top='8px'; } } catch(e) {}
   }
   catch (e) { }
 }
@@ -1806,9 +1813,7 @@ function show_title()
         sb.click(); // Trigger the click event manually
       }, false);
       
-      sb.onclick=function(){ 
-        var om=document.getElementById('orientation_modal'); 
-        if (om) om.remove(); 
+  sb.onclick=function(){ 
         hide_screen(); 
         // Set a flag to show controls when game launches
         if (gs.isMobile) {
@@ -1983,43 +1988,19 @@ function init()
   }
   catch (e) { }
 
-  // Show a blocking orientation modal for mobile when in portrait (appears before gameplay)
-  if (gs.isMobile)
-  {
-  // Force start screens into landscape-like view
-  applyStartLandscape();
-    var showOrientationModal=function()
-    {
-      var ui=document.getElementById('ui');
-      if (!ui) return;
-
-      if (window.matchMedia && window.matchMedia('(orientation: portrait)').matches)
-      {
-        if (!document.getElementById('orientation_modal'))
-        {
-          var modal=document.createElement('div');
-          modal.id='orientation_modal';
-          modal.innerHTML='\n            <div class="orientation_inner">\n              <div class="orientation_text">For the best experience rotate your device to landscape.\n              </div>\n              <div class="orientation_buttons">\n                <button id="orient_full">Enter fullscreen</button>\n                <button id="orient_continue">Continue anyway</button>\n              </div>\n            </div>';
-          ui.appendChild(modal);
-
-          document.getElementById('orient_full').onclick=function(){ toggleFullscreen(); var m=document.getElementById('orientation_modal'); if (m) m.remove(); };
-          document.getElementById('orient_continue').onclick=function(){ var m=document.getElementById('orientation_modal'); if (m) m.remove(); };
-        }
-      }
-      else
-      {
-        var m=document.getElementById('orientation_modal'); if (m) m.remove();
-      }
-    };
-
-    window.addEventListener('orientationchange', showOrientationModal);
-    // show immediately at startup
-    showOrientationModal();
-  }
+  // Removed blocking orientation modal flow (we toggle fullscreen directly now)
 
   window.addEventListener("resize", function()
   {
     playfieldsize();
+  });
+
+  // Recompute layout when fullscreen state changes (desktop + mobile)
+  document.addEventListener('fullscreenchange', function(){
+    try { checkOrientation(); } catch(e) {}
+    try { playfieldsize(); } catch(e) {}
+    // one more pass after transition settles
+    setTimeout(function(){ try { playfieldsize(); } catch(e) {} }, 50);
   });
 
   playfieldsize();
@@ -2052,6 +2033,7 @@ function init()
           target.id === 'controls_panel' || 
           target.id === 'info_button' || 
           target.id === 'close_controls' ||
+          target.id === 'fs_button' ||
           target.id === 'start_button' ||
           target.id === 'backstory' ||
           (target.closest && (
