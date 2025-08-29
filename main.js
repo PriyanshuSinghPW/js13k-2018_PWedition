@@ -1647,6 +1647,100 @@ function launchgame(level)
       document.body.appendChild(fsbtn);
     }
 
+    // Add controls info button and panel
+    try {
+      // Create info button if it doesn't exist
+      var infoBtn = document.getElementById('info_button');
+      if (!infoBtn) {
+        infoBtn = document.createElement('button');
+        infoBtn.id = 'info_button';
+        infoBtn.innerText = 'i';
+        infoBtn.title = 'Game controls';
+        document.body.appendChild(infoBtn);
+      }
+
+      // Create or update controls panel
+      var controlsPanel = document.getElementById('controls_panel');
+      if (!controlsPanel) {
+        controlsPanel = document.createElement('div');
+        controlsPanel.id = 'controls_panel';
+        
+        var panelContent = '<h3>Game Controls</h3>';
+        
+        // Mobile touch controls section
+        panelContent += '<div class="section">';
+        panelContent += '<strong>Touch Controls:</strong>';
+        panelContent += '<div class="touch-controls">';
+        panelContent += '<div class="touch-half">Swipe Left/Right<br>to Move</div>';
+        panelContent += '<div class="touch-half">Tap<br>to Jump</div>';
+        panelContent += '</div>';
+        panelContent += '</div>';
+        
+        // Keyboard controls section
+        panelContent += '<div class="section">';
+        panelContent += '<strong>Keyboard Controls:</strong>';
+        panelContent += '<div class="keys">';
+        panelContent += '<span class="key">A</span> <span class="key">←</span> Move Left<br>';
+        panelContent += '<span class="key">D</span> <span class="key">→</span> Move Right<br>';
+        panelContent += '<span class="key">Space</span> <span class="key">Enter</span> Jump';
+        panelContent += '</div>';
+        panelContent += '</div>';
+        
+        // Gamepad note
+        panelContent += '<div class="section">';
+        panelContent += '<small>Browser-supported gamepads also work if available.</small>';
+        panelContent += '</div>';
+        
+        // Close button
+        panelContent += '<div class="close">';
+        panelContent += '<button id="close_controls">Close</button>';
+        panelContent += '</div>';
+        
+        controlsPanel.innerHTML = panelContent;
+        document.body.appendChild(controlsPanel);
+      }
+      
+      // Show controls panel on first gameplay start (for mobile only)
+      if (gs.isMobile) {
+        // Check if we should show controls at start
+        var showControls = localStorage.getItem('showControlsOnStart') === 'true';
+        if (showControls) {
+          // Clear the flag so we don't show controls next time
+          localStorage.removeItem('showControlsOnStart');
+          
+          // Show controls with auto-dismiss after 4 seconds
+          controlsPanel.style.display = 'block';
+          setTimeout(function() {
+            if (controlsPanel) controlsPanel.style.display = 'none';
+          }, 4000); // Auto-hide after 4 seconds
+        }
+      }
+      
+      // Toggle controls panel when info button clicked
+      infoBtn.onclick = function() {
+        if (controlsPanel.style.display === 'none' || !controlsPanel.style.display) {
+          controlsPanel.style.display = 'block';
+        } else {
+          controlsPanel.style.display = 'none';
+        }
+      };
+      
+      // Close when close button clicked
+      var closeBtn = document.getElementById('close_controls');
+      if (closeBtn) {
+        closeBtn.onclick = function() {
+          controlsPanel.style.display = 'none';
+        };
+      }
+      
+      // Prevent panel clicks from affecting game
+      if (controlsPanel) {
+        controlsPanel.addEventListener('touchstart', function(e) { e.stopPropagation(); }, false);
+        controlsPanel.addEventListener('touchmove', function(e) { e.stopPropagation(); }, false);
+        controlsPanel.addEventListener('touchend', function(e) { e.stopPropagation(); }, false);
+      }
+    } catch(e) { console.log('Error creating controls panel:', e); }
+
     // Inject a rotate prompt overlay for mobile if needed
     var rp=document.getElementById('rotatePrompt');
     if (!rp)
@@ -1684,7 +1778,48 @@ function show_title()
   gs.writer.write("backstory", "Fred lives on planet Figadore in the Hercules cluster, he likes watching cat videos from planet Earth, but the network link has gone OFFLINE!  Help Fred by unlocking doors, solving puzzles and collecting all fruits to pay for the entanglement repolarisation required to get his planet back online. Keys unlock nearest lock of same colour, you need to collect all the fruits and squash all the pizza guards to progress through the levels."+String.fromCharCode(13)+" "+String.fromCharCode(13)+"WASD or cursors to move, ENTER or SPACE to jump, or browser supported gamepad. Press jump to start");
 
   // Start button handler
-  setTimeout(function(){ var sb=document.getElementById('start_button'); if (sb) { sb.onclick=function(){ var om=document.getElementById('orientation_modal'); if (om) om.remove(); hide_screen(); gs.state=2; launchgame(0); } } }, 10);
+  setTimeout(function(){ 
+    // Ensure the backstory is scrollable and start button is clickable
+    var backstory = document.getElementById('backstory');
+    if (backstory) {
+      // Re-enable touch scrolling for the backstory explicitly
+      backstory.addEventListener('touchstart', function(e) {
+        e.stopPropagation(); // Stop propagation to prevent other handlers from catching it
+      }, {passive: true});
+      
+      backstory.addEventListener('touchmove', function(e) {
+        e.stopPropagation(); // Allow default scrolling behavior
+      }, {passive: true});
+    }
+    
+    var sb=document.getElementById('start_button'); 
+    if (sb) { 
+      // Make start button explicitly clickable and ensure its touch events work
+      sb.addEventListener('touchstart', function(e) {
+        e.stopPropagation(); // Stop propagation to prevent other handlers from catching it
+      }, {passive: true});
+      
+      // Add explicit touch handler for mobile since some devices need this
+      sb.addEventListener('touchend', function(e) {
+        e.stopPropagation();
+        e.preventDefault();
+        sb.click(); // Trigger the click event manually
+      }, false);
+      
+      sb.onclick=function(){ 
+        var om=document.getElementById('orientation_modal'); 
+        if (om) om.remove(); 
+        hide_screen(); 
+        // Set a flag to show controls when game launches
+        if (gs.isMobile) {
+          localStorage.setItem('showControlsOnStart', 'true');
+        }
+        // Touch controls are already set up globally
+        gs.state=2;
+        launchgame(0); 
+      } 
+    } 
+  }, 10);
   // Hide fullscreen toggle on title/backstory screen
   try {
     var fsbtn=document.getElementById('fs_button');
@@ -1897,7 +2032,7 @@ function init()
       var movementStartX = 0;
       var swipeThreshold = 20; // pixels
       var jumpTouchIds = {}; // map of active jump touch ids
-
+      
       function clearMoveState() {
         gs.player.keystate &= ~1; // left
         gs.player.keystate &= ~4; // right
@@ -1909,9 +2044,32 @@ function init()
         for (var k in jumpTouchIds) { if (jumpTouchIds.hasOwnProperty(k)) { any = true; break; } }
         if (any) gs.player.keystate |= 16; else gs.player.keystate &= ~16;
       }
+      
+      // Ignore touches on UI elements that need native touch behavior
+      function shouldIgnoreTouch(e) {
+        var target = e.target;
+        return target && (
+          target.id === 'controls_panel' || 
+          target.id === 'info_button' || 
+          target.id === 'close_controls' ||
+          target.id === 'start_button' ||
+          target.id === 'backstory' ||
+          (target.closest && (
+            target.closest('#controls_panel') ||
+            target.closest('#start_button_container') ||
+            target.closest('#backstory')
+          ))
+        );
+      }
 
       window.addEventListener('touchstart', function(e) {
         if (!gs.isMobile) return;
+        // Don't process touches on control panel
+        if (shouldIgnoreTouch(e)) return;
+        
+        // Prevent default to avoid scrolling
+        e.preventDefault();
+        
         for (var i=0;i<e.changedTouches.length;i++) {
           var t = e.changedTouches[i];
           var x = t.clientX;
@@ -1930,10 +2088,16 @@ function init()
             updateJumpState();
           }
         }
-      }, {passive:true});
+      }, {passive:false}); // non-passive to allow preventDefault
 
       window.addEventListener('touchmove', function(e) {
         if (!gs.isMobile) return;
+        // Don't process touches on control panel
+        if (shouldIgnoreTouch(e)) return;
+        
+        // Prevent default to avoid scrolling
+        e.preventDefault();
+        
         for (var i=0;i<e.changedTouches.length;i++) {
           var t = e.changedTouches[i];
           if (t.identifier === movementTouchId) {
@@ -1955,9 +2119,15 @@ function init()
             }
           }
         }
-      }, {passive:true});
+      }, {passive:false}); // non-passive to allow preventDefault
 
       window.addEventListener('touchend', function(e) {
+        // Don't process touches on control panel
+        if (shouldIgnoreTouch(e)) return;
+        
+        // Prevent default to avoid scrolling
+        e.preventDefault();
+        
         for (var i=0;i<e.changedTouches.length;i++) {
           var t = e.changedTouches[i];
           if (t.identifier === movementTouchId) {
@@ -1971,9 +2141,10 @@ function init()
             updateJumpState();
           }
         }
-      }, {passive:true});
+      });
 
       window.addEventListener('touchcancel', function(e) {
+        e.preventDefault();
         for (var i=0;i<e.changedTouches.length;i++) {
           var t = e.changedTouches[i];
           if (t.identifier === movementTouchId) {
@@ -1984,9 +2155,10 @@ function init()
           }
         }
         updateJumpState();
-      }, {passive:true});
+      });
     }
 
+    // Set up touch controls immediately
     setupTouchControls();
   } catch(e) {}
 

@@ -119,6 +119,119 @@ body
   font-size:18px;
 }
 
+/* Controls info button */
+#info_button {
+  position:fixed;
+  left:8px;
+  top:8px;
+  z-index:2147483647; /* very high so it's always visible */
+  background:rgba(0,0,0,0.6);
+  color:#fff;
+  border:1px solid rgba(255,255,255,0.1);
+  padding:8px 12px;
+  border-radius:50%;
+  font-size:16px;
+  font-family:serif;
+  font-style:italic;
+  font-weight:bold;
+  width:18px;
+  height:18px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+
+/* Controls panel */
+#controls_panel {
+  position:fixed;
+  left:10px;
+  top:45px;
+  background:rgba(0,0,0,0.85);
+  color:#fff;
+  border:1px solid rgba(255,255,255,0.2);
+  border-radius:8px;
+  padding:12px;
+  font-size:14px;
+  width:280px;
+  max-width:80vw;
+  z-index:2147483646;
+  text-align:left;
+  display:none; /* initially hidden */
+  white-space:normal;
+}
+
+#controls_panel h3 {
+  margin:0 0 8px 0;
+  text-align:center;
+  font-size:16px;
+}
+
+#controls_panel .section {
+  margin-bottom:10px;
+  padding-bottom:10px;
+  border-bottom:1px solid rgba(255,255,255,0.15);
+}
+
+#controls_panel .section:last-child {
+  margin-bottom:0;
+  padding-bottom:0;
+  border-bottom:none;
+}
+
+#controls_panel .touch-controls {
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  margin:10px 0;
+}
+
+#controls_panel .touch-half {
+  flex:1;
+  text-align:center;
+  padding:12px 4px;
+  border:1px dashed rgba(255,255,255,0.3);
+  margin:0 4px;
+  font-size:12px;
+  border-radius:6px;
+}
+
+#controls_panel .keys {
+  display:flex;
+  flex-wrap:wrap;
+  justify-content:center;
+  margin:8px 0;
+}
+
+#controls_panel .key {
+  display:inline-block;
+  padding:4px 8px;
+  margin:3px;
+  background:rgba(255,255,255,0.15);
+  border-radius:4px;
+  border:1px solid rgba(255,255,255,0.3);
+  font-family:monospace;
+  font-size:12px;
+}
+
+#controls_panel .close {
+  text-align:center;
+  margin-top:12px;
+}
+
+#controls_panel .close button {
+  padding:4px 12px;
+  background:rgba(255,255,255,0.2);
+  border:1px solid rgba(255,255,255,0.3);
+  border-radius:4px;
+  color:#fff;
+  font-size:12px;
+  cursor:pointer;
+}
+
+#controls_panel .close button:active {
+  background:rgba(255,255,255,0.3);
+}
+
 /* Rotate prompt shown when mobile is in portrait while fullscreen */
 #rotatePrompt {
   position:fixed;
